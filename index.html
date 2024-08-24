@@ -117,38 +117,40 @@
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.3/howler.min.js"></script>
+
+    <script src="https://unpkg.com/@hotwired/stimulus/dist/stimulus.umd.js"></script>
 </head>
 <body>
-    <div class="container">
+    <div class="container" data-controller="audio">
         <div class="dashboard">
             <div class="now-playing">
                 <img src="album-art.jpg" alt="Album Art" id="album-art">
                 <div class="song-info">
-                    <h3 id="song-title">Song Title</h3>
-                    <p id="artist-name">Artist Name</p>
+                    <h3 id="song-title" data-audio-target="songTitle">Song Title</h3>
+                    <p id="artist-name" data-audio-target="artistName">Artist Name</p>
                     <div class="progress-bar">
-                        <div class="progress" id="progress"></div>
+                        <div class="progress" id="progress" data-audio-target="progress"></div>
                     </div>
                     <div class="time-info">
-                        <span id="current-time">0:00</span>
-                        <span id="total-duration">0:00</span>
+                        <span id="current-time" data-audio-target="currentTime">0:00</span>
+                        <span id="total-duration" data-audio-target="totalDuration">0:00</span>
                     </div>
                 </div>
             </div>
             <div class="controls">
-                <button id="prev-btn">&#9664;</button>
-                <button id="play-pause-btn">&#9654;</button>
-                <button id="next-btn">&#9654;&#9654;</button>
+                <button id="prev-btn" data-action="click->audio#prev">&#9664;</button>
+                <button id="play-pause-btn" data-action="click->audio#playPause">&#9654;</button>
+                <button id="next-btn" data-action="click->audio#next">&#9654;&#9654;</button>
             </div>
         </div>
         <div class="song-list">
             <h2>Playlist</h2>
-            <ul id="playlist">
-                <li data-audio="audio/Nidra - Bong Hoa Hong.m4a">
+            <ul id="playlist" data-audio-target="playlist">
+                <li data-audio-target="song" data-audio="audio/Nidra - Bong Hoa Hong.m4a" data-action="click->audio#selectSong">
                     <span>Nidra - Bong Hoa Hong.m4a</span>
-                    <span>39:24</span>
+                    <span>3:45</span>
                 </li>
-                <li data-audio="audio/Nidra - Bua tiec.m4a">
+                <li data-audio-target="song" data-audio="audio/Nidra - Bua tiec.m4a" data-action="click->audio#selectSong">
                     <span>Nidra - Bua tiec.m4a</span>
                     <span>4:12</span>
                 </li>
@@ -158,106 +160,98 @@
     </div>
 
     <script>
-        // JavaScript to handle Howler.js and player controls
-        var currentSongIndex = 0;
-        var playlist = document.querySelectorAll('#playlist li');
-        var playPauseButton = document.getElementById('play-pause-btn');
-        var progressBar = document.getElementById('progress');
-        var currentTimeDisplay = document.getElementById('current-time');
-        var totalDurationDisplay = document.getElementById('total-duration');
+        (() => {
+            const application = Stimulus.Application.start();
 
-        var sound = new Howl({
-            src: [playlist[currentSongIndex].getAttribute('data-audio')],
-            html5: true,
-            onplay: function() {
-                // Update the song info and duration
-                updateSongInfo();
-                requestAnimationFrame(updateProgress);
-            },
-            onend: function() {
-                nextSong();
-            }
-        });
+            application.register("audio", class extends Stimulus.Controller {
+                static targets = ["songTitle", "artistName", "progress", "currentTime", "totalDuration", "playlist", "song"];
 
-        function playPause() {
-            if (sound.playing()) {
-                sound.pause();
-                playPauseButton.innerHTML = '&#9654;'; // Play symbol
-            } else {
-                sound.play();
-                playPauseButton.innerHTML = '&#10074;&#10074;'; // Pause symbol
-            }
-        }
+                initialize() {
+                    this.currentSongIndex = 0;
+                    this.sound = null;
+                    this.loadSong();
+                    console.log("currentSongIndex:" + this.currentSongIndex);
+                }
 
-        function nextSong() {
-            currentSongIndex = (currentSongIndex + 1) % playlist.length;
-            loadSong();
-            sound.play();
-        }
+                loadSong() {
+                    const audioSrc = this.songTargets[this.currentSongIndex].getAttribute("data-audio");
 
-        function prevSong() {
-            currentSongIndex = (currentSongIndex - 1 + playlist.length) % playlist.length;
-            loadSong();
-            sound.play();
-        }
+                    if (this.sound) {
+                        this.sound.stop();
+                        this.sound.unload();
+                    }
 
-        function loadSong() {
-            sound.stop();
-            sound.unload();
-            sound = new Howl({
-                src: [playlist[currentSongIndex].getAttribute('data-audio')],
-                html5: true,
-                onplay: function() {
-                    updateSongInfo();
-                    requestAnimationFrame(updateProgress);
-                },
-                onend: function() {
-                    nextSong();
+                    this.sound = new Howl({
+                        src: [audioSrc],
+                        html5: true,
+                        onplay: () => {
+                            this.updateSongInfo();
+                            this.updateProgress();
+                        },
+                        onend: () => {
+                            this.next();
+                        }
+                    });
+
+                    this.updateSongInfo();
+                }
+
+                updateSongInfo() {
+                    const [songTitle, artistName] = this.songTargets[this.currentSongIndex].querySelector("span").innerText.split(" - ");
+                    this.songTitleTarget.innerText = songTitle;
+                    this.artistNameTarget.innerText = artistName;
+
+                    this.sound.once('load', () => {
+                        this.totalDurationTarget.innerText = this.formatTime(this.sound.duration());
+                    });
+                }
+
+                playPause() {
+                    if (this.sound.playing()) {
+                        this.sound.pause();
+                        this.element.querySelector("#play-pause-btn").innerHTML = "&#9654;";
+                    } else {
+                        this.sound.play();
+                        this.element.querySelector("#play-pause-btn").innerHTML = "&#10074;&#10074;";
+                    }
+                }
+
+                next() {
+                    this.currentSongIndex = (this.currentSongIndex + 1) % this.songTargets.length;
+                    this.loadSong();
+                    this.sound.play();
+                }
+
+                prev() {
+                    this.currentSongIndex = (this.currentSongIndex - 1 + this.songTargets.length) % this.songTargets.length;
+                    this.loadSong();
+                    this.sound.play();
+                }
+
+                selectSong(event) {
+                    debugger;
+                    this.currentSongIndex = this.songTargets.indexOf(event.currentTarget);
+                    this.loadSong();
+                    this.sound.play();
+                }
+
+                updateProgress() {
+                    const seek = this.sound.seek() || 0;
+                    this.progressTarget.style.width = `${(seek / this.sound.duration()) * 100}%`;
+                    this.currentTimeTarget.innerText = this.formatTime(seek);
+
+                    if (this.sound.playing()) {
+                        requestAnimationFrame(() => this.updateProgress());
+                    }
+                }
+
+                formatTime(secs) {
+                    const minutes = Math.floor(secs / 60) || 0;
+                    const seconds = Math.floor(secs - minutes * 60) || 0;
+                    return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
                 }
             });
-        }
-
-        function updateSongInfo() {
-            var songTitle = playlist[currentSongIndex].querySelector('span').innerText.split(' - ')[0];
-            var artistName = playlist[currentSongIndex].querySelector('span').innerText.split(' - ')[1];
-            document.getElementById('song-title').innerText = songTitle;
-            document.getElementById('artist-name').innerText = artistName;
-
-            sound.once('load', function() {
-                totalDurationDisplay.innerText = formatTime(sound.duration());
-            });
-        }
-
-        function updateProgress() {
-            var seek = sound.seek() || 0;
-            progressBar.style.width = ((seek / sound.duration()) * 100) + '%';
-            currentTimeDisplay.innerText = formatTime(seek);
-
-            if (sound.playing()) {
-                requestAnimationFrame(updateProgress);
-            }
-        }
-
-        function formatTime(secs) {
-            var minutes = Math.floor(secs / 60) || 0;
-            var seconds = Math.floor(secs - minutes * 60) || 0;
-            return minutes + ':' + (seconds < 10 ? '0' : '') + seconds;
-        }
-
-        // Event listeners
-        playPauseButton.addEventListener('click', playPause);
-        document.getElementById('next-btn').addEventListener('click', nextSong);
-        document.getElementById('prev-btn').addEventListener('click', prevSong);
-        playlist.forEach(function(item, index) {
-            item.addEventListener('click', function() {
-                currentSongIndex = index;
-                loadSong();
-                sound.play();
-            });
-        });
-
-        // Load the first song initially
-        updateSongInfo();
+        })();
     </script>
 </body>
 </html>
