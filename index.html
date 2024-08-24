@@ -103,7 +103,7 @@
         }
         @media (max-width: 768px) {
             .dashboard {
-                flex-direction: column;
+                /* flex-direction: column; */
                 align-items: flex-start;
             }
             .controls button {
@@ -124,10 +124,14 @@
     <div class="container" data-controller="audio">
         <div class="dashboard">
             <div class="now-playing">
-                <img src="album-art.jpg" alt="Album Art" id="album-art">
                 <div class="song-info">
                     <h3 id="song-title" data-audio-target="songTitle">Song Title</h3>
                     <p id="artist-name" data-audio-target="artistName">Artist Name</p>
+                    <div class="controls">
+                        <button id="prev-btn" data-action="click->audio#prev">< Prev</button>
+                        <button id="play-pause-btn" data-action="click->audio#playPause">&#9654;</button>
+                        <button id="next-btn" data-action="click->audio#next">Next ></button>
+                    </div>
                     <div class="progress-bar">
                         <div class="progress" id="progress" data-audio-target="progress"></div>
                     </div>
@@ -137,22 +141,17 @@
                     </div>
                 </div>
             </div>
-            <div class="controls">
-                <button id="prev-btn" data-action="click->audio#prev">&#9664;</button>
-                <button id="play-pause-btn" data-action="click->audio#playPause">&#9654;</button>
-                <button id="next-btn" data-action="click->audio#next">&#9654;&#9654;</button>
-            </div>
         </div>
         <div class="song-list">
             <h2>Playlist</h2>
             <ul id="playlist" data-audio-target="playlist">
                 <li data-audio-target="song" data-audio="audio/Nidra - Bong Hoa Hong.m4a" data-action="click->audio#selectSong">
                     <span>Nidra - Bong Hoa Hong.m4a</span>
-                    <span>3:45</span>
+                    <span>39:24</span>
                 </li>
                 <li data-audio-target="song" data-audio="audio/Nidra - Bua tiec.m4a" data-action="click->audio#selectSong">
                     <span>Nidra - Bua tiec.m4a</span>
-                    <span>4:12</span>
+                    <span>44:37</span>
                 </li>
                 <!-- More songs can be added here -->
             </ul>
@@ -187,6 +186,9 @@
                         onplay: () => {
                             this.updateSongInfo();
                             this.updateProgress();
+
+                            // change icon to play
+                            this.element.querySelector("#play-pause-btn").innerHTML = "&#10074;&#10074;";
                         },
                         onend: () => {
                             this.next();
@@ -229,7 +231,6 @@
                 }
 
                 selectSong(event) {
-                    debugger;
                     this.currentSongIndex = this.songTargets.indexOf(event.currentTarget);
                     this.loadSong();
                     this.sound.play();
